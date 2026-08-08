@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  laravel:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: irondesk_api
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    environment:
+      - APP_ENV=local
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - irondesk
+
+  mysql:
+    image: mysql/mysql-server:8.0
+    container_name: irondesk_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_ROOT_PASSWORD:-secret}'
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_DATABASE: '${DB_DATABASE:-irondesk}'
+      MYSQL_USER: '${DB_USERNAME:-irondesk}'
+      MYSQL_PASSWORD: '${DB_PASSWORD:-secret}'
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - irondesk
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD:-secret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: irondesk_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - irondesk
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: irondesk_mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - irondesk
+
+networks:
+  irondesk:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
